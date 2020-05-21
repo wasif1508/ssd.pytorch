@@ -46,8 +46,11 @@ class SSD(nn.Module):
             self.softmax = nn.Softmax(dim=-1)
             self.detect = Detect(num_classes, 0, 200, 0.01, 0.45)
 
-        self.vgg.insert(len(self.vgg),nn.Dropout2d(0.5))
-        self.vgg.insert(len(self.vgg)-3,nn.Dropout2d(0.5))
+        self.vgg[len(self.vgg)-1]=nn.Dropout2d(0.25)
+        self.vgg[len(self.vgg)-3]=nn.Dropout2d(0.25)
+
+        # self.vgg.insert(len(self.vgg),nn.Dropout2d(0.5))
+        # self.vgg.insert(len(self.vgg)-3,nn.Dropout2d(0.5))
 
     def forward(self, x):
         """Applies network layers and ops on input image(s) x.
