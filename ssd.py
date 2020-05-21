@@ -16,7 +16,6 @@ class SSD(nn.Module):
         3) associated priorbox layer to produce default bounding
            boxes specific to the layer's feature map size.
     See: https://arxiv.org/pdf/1512.02325.pdf for more details.
-
     Args:
         phase: (string) Can be "test" or "train"
         size: input image size
@@ -47,19 +46,19 @@ class SSD(nn.Module):
             self.softmax = nn.Softmax(dim=-1)
             self.detect = Detect(num_classes, 0, 200, 0.01, 0.45)
 
+        self.vgg.insert(len(self.vgg),nn.Dropout2d(0.5))
+        self.vgg.insert(len(self.vgg)-3,nn.Dropout2d(0.5))
+
     def forward(self, x):
         """Applies network layers and ops on input image(s) x.
-
         Args:
             x: input image or batch of images. Shape: [batch,3,300,300].
-
         Return:
             Depending on phase:
             test:
                 Variable(tensor) of output class label predictions,
                 confidence score, and corresponding location predictions for
                 each object detected. Shape: [batch,topk,7]
-
             train:
                 list of concat outputs from:
                     1: confidence layers, Shape: [batch*num_priors,num_classes]
@@ -141,6 +140,7 @@ def vgg(cfg, i, batch_norm=False):
     pool5 = nn.MaxPool2d(kernel_size=3, stride=1, padding=1)
     conv6 = nn.Conv2d(512, 1024, kernel_size=3, padding=6, dilation=6)
     conv7 = nn.Conv2d(1024, 1024, kernel_size=1)
+    dropout=nn.Dropout2d(p=0.5)
     layers += [pool5, conv6,
                nn.ReLU(inplace=True), conv7, nn.ReLU(inplace=True)]
     return layers
@@ -160,6 +160,10 @@ def add_extras(cfg, i, batch_norm=False):
                 layers += [nn.Conv2d(in_channels, v, kernel_size=(1, 3)[flag])]
             flag = not flag
         in_channels = v
+    # print(layers[-1])
+    # layers.insert(len(layers),nn.Dropout2d(0.5))
+    # layers.insert(-2,nn.Dropout2d(0.5))
+    # print('part1 \n',layers)
     return layers
 
 
@@ -172,11 +176,16 @@ def multibox(vgg, extra_layers, cfg, num_classes):
                                  cfg[k] * 4, kernel_size=3, padding=1)]
         conf_layers += [nn.Conv2d(vgg[v].out_channels,
                         cfg[k] * num_classes, kernel_size=3, padding=1)]
+    
+    # print("part2 \n",list(enumerate(extra_layers[1::2], 2)))
     for k, v in enumerate(extra_layers[1::2], 2):
         loc_layers += [nn.Conv2d(v.out_channels, cfg[k]
                                  * 4, kernel_size=3, padding=1)]
         conf_layers += [nn.Conv2d(v.out_channels, cfg[k]
                                   * num_classes, kernel_size=3, padding=1)]
+
+    # print('loc\n',loc_layers)
+    # print('conf\n',conf_layers)
     return vgg, extra_layers, (loc_layers, conf_layers)
 
 
